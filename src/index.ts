@@ -24,31 +24,22 @@ app.get('/:identifier/get', async (request, response) => {
 app.get('/:identifier', async (request, response) => {
 	const {identifier} = request.params;
 	const connection = await db();
-	const channel = await connection.channel.findOne({
-		identifier,
-	});
-	if (!channel) {
-		await connection.channel.insertOne({
-			identifier,
-			howManyTimesIncremented: 1,
-			value: 1,
-		});
-		response.end('1');
-		return;
-	}
-
-	await connection.channel.updateOne(
+	const channel = await connection.channel.findOneAndUpdate(
 		{
 			identifier,
 		},
 		{
-			$set: {
-				value: channel.value + 1,
-				howManyTimesIncremented: channel.howManyTimesIncremented + 1,
-			},
+			$inc: {
+				value: 1,
+				howManyTimesIncremented: 1,
+			}
+		},
+		{
+			upsert: true,
+			returnDocument: 'after',
 		}
 	);
-	response.end(String(channel.value + 1));
+	response.end(String(channel.value?.value));
 });
 
 app.get('/:identifier/set/:numberstr', async (request, response) => {
@@ -88,8 +79,10 @@ app.get('/:identifier/set/:numberstr', async (request, response) => {
 			identifier,
 		},
 		{
+			$inc: {
+				howManyTimesIncremented: 1,
+			},
 			$set: {
-				howManyTimesIncremented: channel.howManyTimesIncremented + 1,
 				value: num,
 			},
 		}
